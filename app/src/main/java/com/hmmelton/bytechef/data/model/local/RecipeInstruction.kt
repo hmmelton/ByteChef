@@ -3,6 +3,7 @@ package com.hmmelton.bytechef.data.model.local
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
@@ -14,7 +15,8 @@ import androidx.room.PrimaryKey
             childColumns = ["recipe_id"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index("recipe_id")]
 )
 data class RecipeInstruction(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
