@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+
+option java_multiple_files = true;
+
+message User {
+    string id = 1;
+    string display_name = 2;
+    string email = 3;
+    repeated string favorite_recipe_ids = 4;
+    repeated string dietary_restrictions = 5;
+    repeated string favorite_cuisines = 6;
+}
