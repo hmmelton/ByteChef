@@ -1,12 +1,13 @@
-package com.hmmelton.bytechef.data.model
+package com.hmmelton.bytechef.data.model.local
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
+import com.hmmelton.bytechef.data.model.StringSetConverter
 
 @Entity(tableName = "users")
-data class UserData(
+data class LocalUser(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "display_name") val displayName: String,
     val email: String,
