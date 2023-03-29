@@ -8,8 +8,11 @@ import androidx.room.PrimaryKey
 data class RecipeInfo(
     @PrimaryKey val id: String,
     val name: String,
+    val description: String,
+    val servings: Int,
+    val cuisine: String,
+    @ColumnInfo(name = "cook_time") val cookTimeMin: Int,
     @ColumnInfo(name = "image_url") val imageUrl: String,
     @ColumnInfo(name = "meal_type") val mealType: String,
-    val cuisine: String,
-    @ColumnInfo(name = "created_by") val createdBy: String
+    @ColumnInfo(name = "author_uid") val authorUid: String
 )
