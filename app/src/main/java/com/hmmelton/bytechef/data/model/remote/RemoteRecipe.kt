@@ -1,10 +1,10 @@
-package com.hmmelton.bytechef.data.remote
+package com.hmmelton.bytechef.data.model.remote
 
 import androidx.annotation.Keep
 import com.google.firebase.firestore.PropertyName
 
 @Keep
-data class FirestoreRecipe(
+data class RemoteRecipe(
     val id: String = "",
     val title: String = "",
     val description: String = "",
