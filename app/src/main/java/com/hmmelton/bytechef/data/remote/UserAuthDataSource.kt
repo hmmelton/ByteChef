@@ -124,11 +124,12 @@ class UserAuthDataSource(
         // If all arguments were null, just return
         if (updates.isEmpty()) return true
 
-        return suspendCoroutine { continuation ->
-            reference.document(uid).update(updates)
-                .addOnCompleteListener { continuation.resume(true) }
-                .addOnFailureListener { continuation.resume(false) }
-                .addOnCanceledListener { continuation.resume(false) }
+        return try {
+            reference.document(uid).update(updates).await()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update user data", e)
+            false
         }
     }
 
