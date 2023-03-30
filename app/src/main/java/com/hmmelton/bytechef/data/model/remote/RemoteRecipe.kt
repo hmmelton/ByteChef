@@ -1,18 +1,20 @@
 package com.hmmelton.bytechef.data.model.remote
 
 import androidx.annotation.Keep
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 
 @Keep
 data class RemoteRecipe(
-    val id: String = "",
+    @Exclude
+    var id: String = "",
     val title: String = "",
     val description: String = "",
     val servings: Int = 0,
 
-    @get:PropertyName("author_uid")
-    @set:PropertyName("author_uid")
-    var authorUid: String = "",
+    @get:PropertyName("created_by")
+    @set:PropertyName("created_by")
+    var createdBy: String = "",
 
     @get:PropertyName("image_uri")
     @set:PropertyName("image_uri")
