@@ -10,6 +10,7 @@ import com.hmmelton.bytechef.data.model.local.RecipeDietaryRestriction
 import com.hmmelton.bytechef.data.model.local.RecipeIngredient
 import com.hmmelton.bytechef.data.model.local.RecipeInstruction
 import com.hmmelton.bytechef.data.model.local.RecipeInfo
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RecipeDao {
@@ -40,7 +41,7 @@ interface RecipeDao {
 
     @Transaction
     @Query("SELECT * FROM recipes WHERE id IN (:recipeIds)")
-    suspend fun getFullRecipesById(recipeIds: List<String>): List<LocalRecipe>
+    suspend fun getFullRecipesById(recipeIds: List<String>): Flow<LocalRecipe>
 
     @Transaction
     @Query("""
@@ -54,6 +55,5 @@ interface RecipeDao {
     suspend fun getFilteredFullRecipes(
         cuisine: String? = null,
         dietaryRestriction: String? = null,
-    ): List<LocalRecipe>
-
+    ): Flow<LocalRecipe>
 }

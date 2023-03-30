@@ -5,6 +5,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.CollectionReference
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.trySendBlocking
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 private const val TAG = "UserAuthDataSource"
@@ -21,7 +26,8 @@ class RemoteUserSourceImpl(
     /**
      * Check whether or not the user is currently authenticated
      */
-    override fun isAuthenticated() = auth.currentUser != null
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getCurrentUid() = auth.currentUidFlow()
 
     /**
      * Register a new user
@@ -147,4 +153,14 @@ class RemoteUserSourceImpl(
             null
         }
     }
+}
+
+@ExperimentalCoroutinesApi
+fun FirebaseAuth.currentUidFlow(): Flow<String?> = callbackFlow {
+    val authStateListener = FirebaseAuth.AuthStateListener { auth ->
+        trySendBlocking(auth.currentUser?.uid)
+    }
+
+    addAuthStateListener(authStateListener)
+    awaitClose { removeAuthStateListener(authStateListener) }
 }

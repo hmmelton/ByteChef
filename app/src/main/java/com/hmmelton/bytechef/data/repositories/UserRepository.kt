@@ -1,26 +1,28 @@
-package com.hmmelton.bytechef.data.remote
+package com.hmmelton.bytechef.data.repositories
 
-import com.hmmelton.bytechef.data.model.remote.RemoteUser
+import User
 import kotlinx.coroutines.flow.Flow
 
-interface RemoteUserSource {
-    fun getCurrentUid(): Flow<String?>
+interface UserRepository {
+    fun isAuthenticated(): Flow<Boolean>
 
     suspend fun registerUser(
         email: String,
         password: String,
         dietaryRestrictions: List<String>,
         favoriteCuisines: List<String>
-    ): RemoteUser?
+    ): User?
 
-    suspend fun loginUser(email: String, password: String): RemoteUser?
+    suspend fun loginUser(email: String, password: String): User?
 
     suspend fun updateUserData(
         uid: String,
-        favoriteRecipes: List<String>? = null,
+        favoriteRecipeIds: List<String>? = null,
         dietaryRestrictions: List<String>? = null,
         favoriteCuisines: List<String>? = null
     ): Boolean
 
-    suspend fun fetchUserData(uid: String): RemoteUser?
+    suspend fun getUser(): Flow<User?>
+
+    suspend fun forceRefreshUser(): Boolean
 }
