@@ -14,10 +14,10 @@ private const val TAG = "UserAuthDataSource"
  * data related to the user - authentication status and user info. The remote user data class used
  * is [RemoteUser].
  */
-class FirestoreUserDataSource(
+class RemoteUserSourceImpl(
     private val auth: FirebaseAuth,
     private val reference: CollectionReference
-) : RemoteUserDataSource {
+) : RemoteUserSource {
     /**
      * Check whether or not the user is currently authenticated
      */

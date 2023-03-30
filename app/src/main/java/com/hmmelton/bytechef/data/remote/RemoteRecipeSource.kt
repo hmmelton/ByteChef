@@ -2,7 +2,7 @@ package com.hmmelton.bytechef.data.remote
 
 import com.hmmelton.bytechef.data.model.remote.RemoteRecipe
 
-interface RemoteRecipeDataSource {
+interface RemoteRecipeSource {
     suspend fun fetchRecipesForUser(uid: String): List<RemoteRecipe>
 
     suspend fun fetchRecipeById(recipeId: String): RemoteRecipe?

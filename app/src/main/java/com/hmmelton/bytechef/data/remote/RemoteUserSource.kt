@@ -2,7 +2,7 @@ package com.hmmelton.bytechef.data.remote
 
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
 
-interface RemoteUserDataSource {
+interface RemoteUserSource {
     fun isAuthenticated(): Boolean
 
     suspend fun registerUser(

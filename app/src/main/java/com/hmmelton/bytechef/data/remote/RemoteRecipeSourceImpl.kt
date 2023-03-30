@@ -11,9 +11,9 @@ private const val TAG = "RemoteRecipeDataSource"
  * This class is used to interact with the remote Firebase Firestore data source to manage
  * recipe data. The remote recipe data class used is [RemoteRecipe].
  */
-class FirestoreRecipeDataSource(
+class RemoteRecipeSourceImpl(
     private val reference: CollectionReference
-) : RemoteRecipeDataSource {
+) : RemoteRecipeSource {
 
     /**
      * Fetch all recipes created by the user with the provided UID.
