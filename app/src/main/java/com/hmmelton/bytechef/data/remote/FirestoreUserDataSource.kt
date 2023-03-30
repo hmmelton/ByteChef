@@ -6,8 +6,6 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.CollectionReference
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
 import kotlinx.coroutines.tasks.await
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
 private const val TAG = "UserAuthDataSource"
 
@@ -16,14 +14,14 @@ private const val TAG = "UserAuthDataSource"
  * data related to the user - authentication status and user info. The remote user data class used
  * is [RemoteUser].
  */
-class UserAuthDataSource(
+class FirestoreUserDataSource(
     private val auth: FirebaseAuth,
     private val reference: CollectionReference
-) {
+) : RemoteUserDataSource {
     /**
      * Check whether or not the user is currently authenticated
      */
-    fun isAuthenticated() = auth.currentUser != null
+    override fun isAuthenticated() = auth.currentUser != null
 
     /**
      * Register a new user
@@ -33,7 +31,7 @@ class UserAuthDataSource(
      * @param dietaryRestrictions any dietary restrictions the user may have
      * @param favoriteCuisines user's favorite cuisines
      */
-    suspend fun registerUser(
+    override suspend fun registerUser(
         email: String,
         password: String,
         dietaryRestrictions: List<String>,
@@ -63,7 +61,7 @@ class UserAuthDataSource(
     /**
      * Log in an existing user with provided credentials
      */
-    suspend fun loginUser(email: String, password: String): RemoteUser? {
+    override suspend fun loginUser(email: String, password: String): RemoteUser? {
         return try {
             // Attempt to log in the user, then fetch their corresponding user data. If either of
             // these steps fails, throw an exception
@@ -76,6 +74,49 @@ class UserAuthDataSource(
             user
         } catch (e: Exception) {
             Log.e(TAG, "failed to log in ", e)
+            null
+        }
+    }
+
+    /**
+     * Update a user's data with 1 or more of the provided arguments.
+     */
+    override suspend fun updateUserData(
+        uid: String,
+        favoriteRecipes: List<String>?,
+        dietaryRestrictions: List<String>?,
+        favoriteCuisines: List<String>?
+    ): Boolean {
+        val updates = mutableMapOf<String, Any>()
+        favoriteRecipes?.let { updates["favorite_recipe_ids"] = it }
+        dietaryRestrictions?.let { updates["dietary_restrictions"] = it }
+        favoriteCuisines?.let { updates["favorite_cuisines"] = it }
+
+        // If all arguments were null, just return
+        if (updates.isEmpty()) return true
+
+        return try {
+            reference.document(uid).update(updates).await()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update user data", e)
+            false
+        }
+    }
+
+    /**
+     * Fetch data for user with provided uid
+     */
+    override suspend fun fetchUserData(uid: String): RemoteUser? {
+        return try {
+            // Read user data from remote database, then cast it into local user data class. If
+            // either of these steps fails, throw an exception
+            val documentSnapshot = reference.document(uid).get().await()
+            val user = documentSnapshot.toObject(RemoteUser::class.java)
+                ?: throw ClassCastException()
+            user
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to fetch user data", e)
             null
         }
     }
@@ -103,49 +144,6 @@ class UserAuthDataSource(
             remoteUser
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create User object", e)
-            null
-        }
-    }
-
-    /**
-     * Update a user's data with 1 or more of the provided arguments.
-     */
-    suspend fun updateUserData(
-        uid: String,
-        favoriteRecipes: List<String>? = null,
-        dietaryRestrictions: List<String>? = null,
-        favoriteCuisines: List<String>? = null
-    ): Boolean {
-        val updates = mutableMapOf<String, Any>()
-        favoriteRecipes?.let { updates["favorite_recipe_ids"] = it }
-        dietaryRestrictions?.let { updates["dietary_restrictions"] = it }
-        favoriteCuisines?.let { updates["favorite_cuisines"] = it }
-
-        // If all arguments were null, just return
-        if (updates.isEmpty()) return true
-
-        return try {
-            reference.document(uid).update(updates).await()
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to update user data", e)
-            false
-        }
-    }
-
-    /**
-     * Fetch data for user with provided uid
-     */
-    suspend fun fetchUserData(uid: String): RemoteUser? {
-        return try {
-            // Read user data from remote database, then cast it into local user data class. If
-            // either of these steps fails, throw an exception
-            val documentSnapshot = reference.document(uid).get().await()
-            val user = documentSnapshot.toObject(RemoteUser::class.java)
-                ?: throw ClassCastException()
-            user
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch user data", e)
             null
         }
     }
