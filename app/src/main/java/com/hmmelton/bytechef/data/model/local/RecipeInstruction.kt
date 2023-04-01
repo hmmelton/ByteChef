@@ -21,6 +21,7 @@ import androidx.room.PrimaryKey
 data class RecipeInstruction(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "recipe_id") val recipeId: String,
-    val step: String
+    val description: String,
+    @ColumnInfo(name = "step_num") val stepNum: Int
 )
 
