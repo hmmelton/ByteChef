@@ -3,20 +3,22 @@ package com.hmmelton.bytechef.data.repositories
 import User
 import android.util.Log
 import androidx.work.Constraints
+import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.PeriodicWorkRequest
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.await
+import com.hmmelton.bytechef.data.auth.AuthManager
 import com.hmmelton.bytechef.data.local.UserStore
-import com.hmmelton.bytechef.data.model.remote.RemoteUser
 import com.hmmelton.bytechef.data.remote.RemoteUserSource
 import com.hmmelton.bytechef.data.workers.SynchronizeUserDataWorker
+import com.hmmelton.bytechef.data.workers.WorkKeys
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.onStart
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "UserRepositoryImpl"
@@ -28,68 +30,44 @@ class UserRepositoryImpl(
     private val remoteUserSource: RemoteUserSource,
     private val userStore: UserStore,
     private val workManager: WorkManager
-) : UserRepository {
+) : UserRepository, SynchronizedRepository {
 
     /**
-     * Check if the user is authenticated.
-     *
-     * @return true if authenticated, false otherwise.
+     * Create data for new user.
      */
-    override fun isAuthenticated(): Flow<Boolean> {
-        return remoteUserSource.getCurrentUid()
-            .map { uid ->
-                // If uid is null, clear user from local storage
-                if (uid == null) userStore.clearUser()
-
-                // User is authenticated if the uid is not null
-                uid !=  null
-            }
-    }
-
-    /**
-     * Register a new user.
-     *
-     * @param email user's email.
-     * @param password user's password.
-     * @param dietaryRestrictions user's dietary restrictions.
-     * @param favoriteCuisines user's favorite cuisines.
-     *
-     * @return created User if successful, null otherwise.
-     */
-    override suspend fun registerUser(
-        email: String,
-        password: String,
+    override suspend fun createUserData(
+        authInfo: AuthManager.AuthInfo,
+        displayName: String,
         dietaryRestrictions: List<String>,
         favoriteCuisines: List<String>
-    ): User? {
-        val remoteUser = remoteUserSource.registerUser(
-            email, password, dietaryRestrictions, favoriteCuisines
-        ) ?: return null
+    ): Boolean {
+        return try {
+            // Create user in remote source, throwing exception in case of failure
+            val remoteUser = remoteUserSource.createUserData(
+                authInfo,
+                displayName,
+                dietaryRestrictions,
+                favoriteCuisines
+            ) ?: throw Exception("Failed to create user data in remote source")
 
-        return saveUserToLocalStorage(remoteUser)
-    }
+            // Create user in local source, throwing exception in case of failure
+            val user = userStore.syncWithRemote(remoteUser)
 
-    /**
-     * Log in an existing user.
-     *
-     * @param email user's email.
-     * @param password user's password.
-     *
-     * @return User if successful, null otherwise.
-     */
-    override suspend fun loginUser(email: String, password: String): User? {
-        val remoteUser = remoteUserSource.loginUser(email, password) ?: return null
+            // If saving the user locally failed, undo remote object creation
+            if (user == null) {
+                remoteUserSource.deleteUserData(authInfo.uid)
+                throw Exception("Failed to create user data in local source")
+            }
 
-        return saveUserToLocalStorage(remoteUser)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create user data", e)
+            false
+        }
     }
 
     /**
      * Update user's favorites recipes, dietary restrictions, and favorite cuisines.
-     *
-     * @param uid user's UID.
-     * @param favoriteRecipeIds list of user's favorite recipes.
-     * @param dietaryRestrictions list of user's dietary restrictions.
-     * @param favoriteCuisines list of user's favorite cuisines.
      */
     override suspend fun updateUserData(
         uid: String,
@@ -97,120 +75,129 @@ class UserRepositoryImpl(
         dietaryRestrictions: List<String>?,
         favoriteCuisines: List<String>?
     ): Boolean {
-        val user = userStore.user.first()
-        if (user.id != uid || user.id.isEmpty()) {
-            // User not found in local store
-            Log.e(TAG, "Error fetching user from local source")
-            return false
+        return try {
+            val user = userStore.user.first()
+            if (user.id != uid || user.id.isEmpty()) {
+                // User not found in local store
+                Log.e(TAG, "Error fetching user from local source")
+                return false
+            }
+
+            // Update remote user data
+            val updatedRemoteSource = remoteUserSource.updateUserData(
+                uid = user.id,
+                favoriteRecipesIds = favoriteRecipeIds,
+                dietaryRestrictions = dietaryRestrictions,
+                favoriteCuisines = favoriteCuisines
+            )
+
+            if (!updatedRemoteSource) return false
+
+            // Update local user data
+            userStore.updateUser(favoriteRecipeIds, dietaryRestrictions, favoriteCuisines)
+                ?: throw Exception("Failed to update user data in local source")
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update user data", e)
+            false
         }
-
-        // Update remote user data
-        val updatedRemoteSource = remoteUserSource.updateUserData(
-            uid = user.id,
-            favoriteRecipes = favoriteRecipeIds,
-            dietaryRestrictions = dietaryRestrictions,
-            favoriteCuisines = favoriteCuisines
-        )
-
-        if (!updatedRemoteSource) return false
-
-        // Update local user data
-        userStore.updateUser(favoriteRecipeIds, dietaryRestrictions, favoriteCuisines)
-            ?: return false
-
-        return true
     }
 
     /**
      * Function that returns user data as a [Flow]. A null [User] means there is currently no
      * authenticated user.
      */
-    override suspend fun getUser(): Flow<User?> = userStore.user
+    override suspend fun observeUser(): Flow<User?> = userStore.user
         .map {
             if (it.id.isEmpty()) null
             else it
-        }.onStart {
-            // When this Flow begins emitting data, start data source synchronization and do a
-            // forced remote data refresh
-            scheduleDataSynchronization()
-            if (!forceRefreshUser()) {
-                Log.e(TAG, "Failed to force refresh user data")
-            }
-        }
-        .onCompletion { exception ->
-            // When this Flow has completed (due to cancellation or failure), cancel the running
-            // remote data synchronization job
-            Log.i(TAG, "getUser Flow completed")
-            exception?.let { Log.e(TAG, "Exception thrown from getUser Flow", exception) }
-            cancelDataSynchronization()
         }
 
     /**
      * Function that forces a data refresh from the remote data source.
      *
+     * @param uid ID of current user
+     *
      * @return whether or not the refresh/sync succeeded
      */
-    override suspend fun forceRefreshUser(): Boolean {
-        return try {
-            //
-            val currentUid = remoteUserSource.getCurrentUid().first()
-                ?: throw Exception("Current UID null")
-            val remoteUser = remoteUserSource.fetchUserData(currentUid)
-                ?: throw Exception("Failed to fetch remote user data")
-            userStore.syncWithRemote(remoteUser)
-                ?: throw Exception("Failed to sync remote user data locally")
+    override suspend fun forceRefreshUser(uid: String): Boolean {
+        TODO("Not yet implemented")
+    }
 
-            // Refresh was a success
+    /**
+     * Delete user info with provided uid.
+     */
+    override suspend fun deleteUserData(uid: String, localSourceOnly: Boolean): Boolean {
+        return try {
+            // Delete data locally
+            userStore.clearUser()
+
+            // Only if it is specified this was not a local-only request, attempt to delete data
+            // in remote data source
+            if (!localSourceOnly) {
+                val result = remoteUserSource.deleteUserData(uid)
+                if (!result) throw Exception("Failed to delete data in remote source")
+            }
             true
         } catch (e: Exception) {
-            // Refresh failed
-            Log.e(TAG, "Failed to get user data", e)
+            Log.e(TAG, "Failed to delete user data", e)
             false
         }
     }
 
     /**
-     * Save the RemoteUser to local storage.
-     *
-     * @param remoteUser RemoteUser instance.
-     *
-     * @return created User instance.
+     * ID of sync job, referenced to cancel the job in [stopSync].
      */
-    private suspend fun saveUserToLocalStorage(remoteUser: RemoteUser) =
-        userStore.syncWithRemote(remoteUser)
-
-    /**
-     * [PeriodicWorkRequest] for syncing local data source with remote.
-     */
-    private val syncWorkRequest by lazy {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        PeriodicWorkRequestBuilder<SynchronizeUserDataWorker>(
-            1, TimeUnit.HOURS, // Set the repeat interval. Here, it's set to 1 hour.
-            15, TimeUnit.MINUTES // Set the flex interval. Here, it's set to 15 minutes.
-        )
-            .setConstraints(constraints)
-            .build()
-    }
+    private var syncJobId: UUID? = null
 
     /**
      * Schedule data synchronization.
      */
-    private fun scheduleDataSynchronization() {
-        workManager.enqueueUniquePeriodicWork(
-            "SynchronizeUserData",
-            ExistingPeriodicWorkPolicy.KEEP, // Use KEEP or REPLACE based on your desired behavior.
-            syncWorkRequest
-        )
+    override suspend fun startSync() {
+        try {
+            // Fetch current user ID
+            val user = userStore.user.first()
+
+            // Constrain job to run only when there is a network connection
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            // Custom input data containing current user's ID
+            val inputData = Data.Builder()
+                .putString(WorkKeys.UID, user.id)
+                .build()
+
+            // Request job to run every 1 hour with 15min flex time. Add previously-defined
+            // constraints and input data.
+            val workRequest = PeriodicWorkRequestBuilder<SynchronizeUserDataWorker>(
+                1, TimeUnit.HOURS, // Set the repeat interval to 1 hour.
+                15, TimeUnit.MINUTES // Set the flex interval to 15 minutes.
+            )
+                .setConstraints(constraints)
+                .setInputData(inputData)
+                .build()
+
+            // Enqueue job
+            workManager.enqueueUniquePeriodicWork(
+                "SynchronizeUserData",
+                ExistingPeriodicWorkPolicy.KEEP, // Use KEEP or REPLACE based on your desired behavior.
+                workRequest
+            ).await()
+
+            // If job was enqueued, update global job ID
+            syncJobId = workRequest.id
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start data sync", e)
+        }
     }
 
     /**
      * Cancel existing data synchronization.
      */
-    private fun cancelDataSynchronization() {
-        workManager.cancelWorkById(syncWorkRequest.id)
+    override suspend fun stopSync() {
+        syncJobId?.let { workManager.cancelWorkById(it) }
     }
 }
 

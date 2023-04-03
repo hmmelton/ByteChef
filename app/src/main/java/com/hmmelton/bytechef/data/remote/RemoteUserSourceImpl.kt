@@ -1,15 +1,9 @@
 package com.hmmelton.bytechef.data.remote
 
 import android.util.Log
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.CollectionReference
+import com.hmmelton.bytechef.data.auth.AuthManager
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.channels.trySendBlocking
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 private const val TAG = "UserAuthDataSource"
@@ -20,66 +14,30 @@ private const val TAG = "UserAuthDataSource"
  * is [RemoteUser].
  */
 class RemoteUserSourceImpl(
-    private val auth: FirebaseAuth,
     private val reference: CollectionReference
 ) : RemoteUserSource {
-    /**
-     * Check whether or not the user is currently authenticated
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    override fun getCurrentUid() = auth.currentUidFlow()
 
     /**
-     * Register a new user
-     *
-     * @param email user's account email
-     * @param password user's accoutn password
-     * @param dietaryRestrictions any dietary restrictions the user may have
-     * @param favoriteCuisines user's favorite cuisines
+     * Create user info object for newly-registered user.
      */
-    override suspend fun registerUser(
-        email: String,
-        password: String,
+    override suspend fun createUserData(
+        authInfo: AuthManager.AuthInfo,
+        displayName: String,
         dietaryRestrictions: List<String>,
         favoriteCuisines: List<String>
     ): RemoteUser? {
         return try {
-            // Attempt to register the user, then create a user data object for them. If either of
-            // these steps fails, throw an exception
-            val firebaseUser = auth.createUserWithEmailAndPassword(email, password).await().user
-                ?: throw Exception("Failed to register user")
-            val user =
-                createUserInFirestore(firebaseUser, dietaryRestrictions, favoriteCuisines)
-                    ?: throw Exception("Failed to create User object")
-
-            // Otherwise, return user data
-            user
+            val remoteUser = RemoteUser(
+                uid = authInfo.uid,
+                email = authInfo.email.orEmpty(),
+                displayName = displayName,
+                dietaryRestrictions = dietaryRestrictions,
+                favoriteCuisines = favoriteCuisines
+            )
+            reference.document(authInfo.uid).set(remoteUser).await()
+            remoteUser
         } catch (e: Exception) {
-            // Rollback by deleting the user from FirebaseAuth
-            auth.currentUser?.delete()?.await()
-            Log.e(TAG, "failed to register user", e)
-
-            null
-        }
-    }
-
-
-    /**
-     * Log in an existing user with provided credentials
-     */
-    override suspend fun loginUser(email: String, password: String): RemoteUser? {
-        return try {
-            // Attempt to log in the user, then fetch their corresponding user data. If either of
-            // these steps fails, throw an exception
-            val firebaseUser = auth.signInWithEmailAndPassword(email, password).await().user
-                ?: throw Exception("Failed to log in user")
-            val user = fetchUserData(firebaseUser.uid)
-                ?: throw Exception("Failed to fetch user data")
-
-            // Otherwise return user data
-            user
-        } catch (e: Exception) {
-            Log.e(TAG, "failed to log in ", e)
+            Log.e(TAG, "Failed to create User object", e)
             null
         }
     }
@@ -89,12 +47,13 @@ class RemoteUserSourceImpl(
      */
     override suspend fun updateUserData(
         uid: String,
-        favoriteRecipes: List<String>?,
+        favoriteRecipesIds: List<String>?,
         dietaryRestrictions: List<String>?,
         favoriteCuisines: List<String>?
     ): Boolean {
+        // Create update map from only non-null arguments
         val updates = mutableMapOf<String, Any>()
-        favoriteRecipes?.let { updates["favorite_recipe_ids"] = it }
+        favoriteRecipesIds?.let { updates["favorite_recipe_ids"] = it }
         dietaryRestrictions?.let { updates["dietary_restrictions"] = it }
         favoriteCuisines?.let { updates["favorite_cuisines"] = it }
 
@@ -111,7 +70,7 @@ class RemoteUserSourceImpl(
     }
 
     /**
-     * Fetch data for user with provided uid
+     * Fetch data for user with provided uid.
      */
     override suspend fun fetchUserData(uid: String): RemoteUser? {
         return try {
@@ -128,39 +87,17 @@ class RemoteUserSourceImpl(
     }
 
     /**
-     * Create user info object for newly-registered user
-     *
-     * @param user newly-created user
-     * @param dietaryRestrictions user's dietary restrictions
-     * @param favoriteCuisines user's favorite cuisines
+     * Delete user data with provided uid.
      */
-    private suspend fun createUserInFirestore(
-        user: FirebaseUser,
-        dietaryRestrictions: List<String>,
-        favoriteCuisines: List<String>
-    ): RemoteUser? {
+    override suspend fun deleteUserData(uid: String): Boolean {
         return try {
-            val remoteUser = RemoteUser(
-                uid = user.uid,
-                email = user.email.orEmpty(),
-                dietaryRestrictions = dietaryRestrictions,
-                favoriteCuisines = favoriteCuisines
-            )
-            reference.document(user.uid).set(remoteUser).await()
-            remoteUser
+            // Attempt to delete user
+            reference.document(uid).delete().await()
+
+            true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create User object", e)
-            null
+            Log.e(TAG, "Failed to delete user data", e)
+            false
         }
     }
-}
-
-@ExperimentalCoroutinesApi
-fun FirebaseAuth.currentUidFlow(): Flow<String?> = callbackFlow {
-    val authStateListener = FirebaseAuth.AuthStateListener { auth ->
-        trySendBlocking(auth.currentUser?.uid)
-    }
-
-    addAuthStateListener(authStateListener)
-    awaitClose { removeAuthStateListener(authStateListener) }
 }

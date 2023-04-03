@@ -25,7 +25,7 @@ class RemoteRecipeSourceImpl(
             val querySnapshot = reference.whereEqualTo("created_by", uid).get().await()
             querySnapshot.documents.mapNotNull {  document ->
                 val recipe = document.toObject(RemoteRecipe::class.java)
-                recipe?.apply { id = document.id }
+                recipe
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch recipes for user", e)
@@ -42,7 +42,7 @@ class RemoteRecipeSourceImpl(
         return try {
             val documentSnapshot = reference.document(recipeId).get().await()
             val recipe = documentSnapshot.toObject(RemoteRecipe::class.java)
-            recipe?.apply { id = documentSnapshot.id }
+            recipe
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch recipe by ID", e)
             null
@@ -54,15 +54,13 @@ class RemoteRecipeSourceImpl(
      *
      * @param recipe The recipe to add.
      */
-    override suspend fun addRecipe(recipe: RemoteRecipe): RemoteRecipe? {
+    override suspend fun createRecipe(recipe: RemoteRecipe): Boolean {
         return try {
-            val documentReference = reference.add(recipe).await()
-            val documentSnapshot = documentReference.get().await()
-            val newRecipe = documentSnapshot.toObject(RemoteRecipe::class.java)
-            newRecipe?.apply { id = documentSnapshot.id }
+            reference.document(recipe.id).set(recipe).await()
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to add recipe", e)
-            null
+            false
         }
     }
 

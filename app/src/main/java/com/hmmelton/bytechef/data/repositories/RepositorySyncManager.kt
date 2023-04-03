@@ -41,13 +41,13 @@ class RepositorySyncManager(
         authInfoFlowJob?.cancel()
     }
 
-    private fun startSyncingRepositories() {
+    private suspend fun startSyncingRepositories() {
         syncableRepositories.forEach { repository ->
             repository.startSync()
         }
     }
 
-    private fun stopSyncingRepositories() {
+    private suspend fun stopSyncingRepositories() {
         syncableRepositories.forEach { repository ->
             repository.stopSync()
         }
