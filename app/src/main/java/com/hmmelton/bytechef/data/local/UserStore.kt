@@ -3,6 +3,7 @@ package com.hmmelton.bytechef.data.local
 import User
 import android.util.Log
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.IOException
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -10,6 +11,9 @@ import kotlinx.coroutines.flow.map
 
 private const val TAG = "UserStore"
 
+/**
+ * Class used for persisting user info locally.
+ */
 class UserStore(private val dataStore: DataStore<User>) {
     /**
      * Read user data. If an error occurs, emit the default (empty) data for [User]
@@ -22,6 +26,10 @@ class UserStore(private val dataStore: DataStore<User>) {
 
     /**
      * Sync local data with remote data source.
+     *
+     * @param remoteUser data from remote source
+     *
+     * @return user saved to local source, or null if the sync failed
      */
     suspend fun syncWithRemote(remoteUser: RemoteUser): User? {
         return try {
@@ -45,6 +53,12 @@ class UserStore(private val dataStore: DataStore<User>) {
 
     /**
      * Update user data. This function is triggered by a direct request from the user.
+     *
+     * @param favoriteRecipeIds list of IDs of user's favorite recipes
+     * @param dietaryRestrictions list of user's dietary restrictitons
+     * @param favoriteCuisines list of user's favorite cuisines
+     *
+     * @return updated user data, or null if update failed
      */
     suspend fun updateUser(
         favoriteRecipeIds: List<String>? = null,
@@ -74,8 +88,9 @@ class UserStore(private val dataStore: DataStore<User>) {
     }
 
     /**
-     * Clear the current [User] data from local storage
+     * Clear the current [User] data from local storage.
      */
+    @Throws(IOException::class, Exception::class)
     suspend fun clearUser() {
         dataStore.updateData { User.getDefaultInstance() }
     }
