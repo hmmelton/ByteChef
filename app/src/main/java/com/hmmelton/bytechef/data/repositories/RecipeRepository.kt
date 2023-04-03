@@ -1,13 +1,51 @@
 package com.hmmelton.bytechef.data.repositories
 
 import com.hmmelton.bytechef.data.model.ui.Recipe
+import kotlinx.coroutines.flow.Flow
 
-interface RecipesRepository {
-    suspend fun fetchRecipesForUser(uid: String): Result<List<Recipe>>
+/**
+ * Interface defining a repository for interacting with recipe data.
+ */
+interface RecipeRepository {
 
-    suspend fun createRecipe(recipe: Recipe): Result<Unit>
+    /**
+     * Flow for reading recipe data.
+     */
+    suspend fun observeRecipes(): Flow<List<Recipe>>
 
-    suspend fun updateRecipe(recipe: Recipe): Result<Unit>
+    /**
+     * Create a new recipe data object.
+     *
+     * @param recipe recipe to be saved
+     *
+     * @return whether or not the object creation was successful
+     */
+    suspend fun createRecipe(recipe: Recipe): Boolean
 
-    suspend fun deleteRecipe(recipeId: String): Result<Unit>
+    /**
+     * Update an existing recipe data object.
+     *
+     * @param recipe recipe to be updated
+     *
+     * @return whether or not the update was successful
+     */
+    suspend fun updateRecipe(recipe: Recipe): Boolean
+
+    /**
+     * Delete a recipe data object.
+     *
+     * @param recipeId id of recipe to be deleted
+     *
+     * @return whether or not the deletion was successful
+     */
+    suspend fun deleteRecipe(recipeId: String): Boolean
+
+    /**
+     * Force a refresh of data from the remote data source.
+     *
+     * @param uid ID of current user
+     *
+     * @return whether or not the data refresh succeeded
+     */
+    suspend fun forceRefreshRecipes(uid: String): Boolean
 }

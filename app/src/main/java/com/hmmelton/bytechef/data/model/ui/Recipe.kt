@@ -9,6 +9,10 @@ import com.hmmelton.bytechef.data.model.remote.RemoteIngredient
 import com.hmmelton.bytechef.data.model.remote.RemoteInstruction
 import com.hmmelton.bytechef.data.model.remote.RemoteRecipe
 
+/**
+ * Data class for showing a recipe in the UI layer. Related local and remote data source classes are
+ * [LocalRecipe] and [RemoteRecipe], respectively.
+ */
 data class Recipe(
     val id: String,
     val name: String,
