@@ -1,15 +1,26 @@
 package com.hmmelton.bytechef.data.repositories
 
 import android.util.Log
+import androidx.work.Constraints
+import androidx.work.Data
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.await
 import com.hmmelton.bytechef.data.local.RecipeDao
 import com.hmmelton.bytechef.data.model.local.toRecipe
 import com.hmmelton.bytechef.data.model.ui.Recipe
 import com.hmmelton.bytechef.data.model.ui.toLocalRecipe
 import com.hmmelton.bytechef.data.model.ui.toRemoteRecipe
 import com.hmmelton.bytechef.data.remote.RemoteRecipeSource
+import com.hmmelton.bytechef.data.workers.SynchronizeRecipeDataWorker
+import com.hmmelton.bytechef.data.workers.WorkKeys
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 private const val TAG = "RecipeRepositoryImpl"
 
@@ -18,7 +29,9 @@ private const val TAG = "RecipeRepositoryImpl"
  */
 class RecipeRepositoryImpl(
     private val remoteRecipeSource: RemoteRecipeSource,
-    private val recipeDao: RecipeDao
+    private val recipeDao: RecipeDao,
+    private val userRepository: UserRepository,
+    private val workManager: WorkManager
 ) : RecipeRepository, SynchronizedRepository {
 
     /**
@@ -97,7 +110,8 @@ class RecipeRepositoryImpl(
      * @return whether or not the refresh/sync succeeded
      */
     override suspend fun forceRefreshRecipes(uid: String): Boolean {
-        TODO("NOt yet implemented")
+        // TODO: sync data
+        return true
     }
 
     /**
@@ -109,13 +123,52 @@ class RecipeRepositoryImpl(
      * Start syncing data between remote and local data sources.
      */
     override suspend fun startSync() {
-        TODO("Not yet implemented")
+        try {
+            // Fetch current UID
+            val uid = userRepository.observeUser().first()?.id ?: run {
+                // Return early if UID is null
+                Log.i(TAG, "Cannot start sync - uid is null")
+                return
+            }
+
+            // Constrain job to run only when there is a network connection
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            // Custom input data containing current user's ID
+            val inputData = Data.Builder()
+                .putString(WorkKeys.UID, uid)
+                .build()
+
+            // Request job to run every 1 hour with 15min flex time. Add previously-defined
+            // constraints and input data.
+            val workRequest = PeriodicWorkRequestBuilder<SynchronizeRecipeDataWorker>(
+                1, TimeUnit.HOURS, // Set the repeat interval to 1 hour.
+                15, TimeUnit.MINUTES // Set the flex interval to 15 minutes.
+            )
+                .setConstraints(constraints)
+                .setInputData(inputData)
+                .build()
+
+            // Enqueue job
+            workManager.enqueueUniquePeriodicWork(
+                "SynchronizeRecipeData",
+                ExistingPeriodicWorkPolicy.KEEP, // Use KEEP or REPLACE based on your desired behavior.
+                workRequest
+            ).await()
+
+            // If job was enqueued, update global job ID
+            syncJobId = workRequest.id
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start data sync", e)
+        }
     }
 
     /**
      * Stop syncing data between remote and local data sources.
      */
     override suspend fun stopSync() {
-        TODO("Not yet implemented")
+        syncJobId?.let { workManager.cancelWorkById(it) }
     }
 }
