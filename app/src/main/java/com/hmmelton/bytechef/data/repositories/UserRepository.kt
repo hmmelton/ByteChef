@@ -58,7 +58,7 @@ interface UserRepository {
     /**
      * Flow for reading user data.
      */
-    suspend fun observeUser(): Flow<User?>
+    fun observeUser(): Flow<User?>
 
     /**
      * Force a refresh from the remote data source.

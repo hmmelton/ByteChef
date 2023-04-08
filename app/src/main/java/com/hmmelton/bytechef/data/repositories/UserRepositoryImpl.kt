@@ -108,7 +108,7 @@ class UserRepositoryImpl(
      * Function that returns user data as a [Flow]. A null [User] means there is currently no
      * authenticated user.
      */
-    override suspend fun observeUser(): Flow<User?> = userStore.user
+    override fun observeUser(): Flow<User?> = userStore.user
         .map {
             if (it.id.isEmpty()) null
             else it
@@ -122,7 +122,8 @@ class UserRepositoryImpl(
      * @return whether or not the refresh/sync succeeded
      */
     override suspend fun forceRefreshUser(uid: String): Boolean {
-        TODO("Not yet implemented")
+        // TODO: sync data
+        return true
     }
 
     /**
@@ -158,6 +159,12 @@ class UserRepositoryImpl(
         try {
             // Fetch current user ID
             val user = userStore.user.first()
+
+            // Return early if there is no UID stored locally
+            if (user.id.isEmpty()) {
+                Log.i(TAG, "Cannot start sync - uid is empty")
+                return
+            }
 
             // Constrain job to run only when there is a network connection
             val constraints = Constraints.Builder()
