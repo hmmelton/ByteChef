@@ -1,7 +1,7 @@
 package com.hmmelton.bytechef.data.repositories
 
-import User
 import com.hmmelton.bytechef.data.auth.AuthManager
+import com.hmmelton.bytechef.data.model.local.User
 import kotlinx.coroutines.flow.Flow
 
 /**

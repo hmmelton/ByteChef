@@ -21,13 +21,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.*
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 private const val TAG = "RecipeRepositoryImpl"
 
 /**
  * Implementation of [RecipeRepository].
  */
-class RecipeRepositoryImpl(
+class RecipeRepositoryImpl @Inject constructor(
     private val remoteRecipeSource: RemoteRecipeSource,
     private val recipeDao: RecipeDao,
     private val userRepository: UserRepository,

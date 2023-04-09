@@ -3,7 +3,9 @@ package com.hmmelton.bytechef.data.remote
 import android.util.Log
 import com.google.firebase.firestore.CollectionReference
 import com.hmmelton.bytechef.data.model.remote.RemoteRecipe
+import com.hmmelton.bytechef.di.ForRecipe
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 private const val TAG = "RemoteRecipeDataSource"
 
@@ -11,8 +13,8 @@ private const val TAG = "RemoteRecipeDataSource"
  * This class is used to interact with the remote Firebase Firestore data source to manage
  * recipe data. The remote recipe data class used is [RemoteRecipe].
  */
-class RemoteRecipeSourceImpl(
-    private val reference: CollectionReference
+class RemoteRecipeSourceImpl @Inject constructor(
+    @ForRecipe private val reference: CollectionReference
 ) : RemoteRecipeSource {
 
     /**

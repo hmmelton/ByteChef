@@ -8,13 +8,14 @@ import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 private const val TAG = "AuthManagerImpl"
 
 /**
  * Implementation of [AuthManager] for managing user authentication state.
  */
-class AuthManagerImpl(private val auth: FirebaseAuth) : AuthManager {
+class AuthManagerImpl @Inject constructor(private val auth: FirebaseAuth) : AuthManager {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeAuthInfo() = auth.authInfoFlow()

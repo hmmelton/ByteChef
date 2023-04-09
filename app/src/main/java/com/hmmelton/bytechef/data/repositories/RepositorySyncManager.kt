@@ -5,11 +5,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
  * Utility class for syncing repository data sources.
  */
-class RepositorySyncManager(
+class RepositorySyncManager @Inject constructor(
     private val authManager: AuthManager,
     private val coroutineDispatcher: CoroutineDispatcher,
     private val syncableRepositories: Set<@JvmSuppressWildcards SynchronizedRepository>

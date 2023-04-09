@@ -1,12 +1,9 @@
 package com.hmmelton.bytechef.data.local
 
-import User
-import android.content.Context
 import androidx.datastore.core.CorruptionException
-import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
-import androidx.datastore.dataStore
 import com.google.protobuf.InvalidProtocolBufferException
+import com.hmmelton.bytechef.data.model.local.User
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -23,8 +20,3 @@ object UserSerializer : Serializer<User> {
 
     override suspend fun writeTo(t: User, output: OutputStream) = t.writeTo(output)
 }
-
-val Context.userDataStore: DataStore<User> by dataStore(
-    fileName = "user.pb",
-    serializer = UserSerializer
-)

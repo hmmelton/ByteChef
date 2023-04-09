@@ -4,7 +4,9 @@ import android.util.Log
 import com.google.firebase.firestore.CollectionReference
 import com.hmmelton.bytechef.data.auth.AuthManager
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
+import com.hmmelton.bytechef.di.ForUser
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 private const val TAG = "UserAuthDataSource"
 
@@ -13,8 +15,8 @@ private const val TAG = "UserAuthDataSource"
  * data related to the user - authentication status and user info. The remote user data class used
  * is [RemoteUser].
  */
-class RemoteUserSourceImpl(
-    private val reference: CollectionReference
+class RemoteUserSourceImpl @Inject constructor(
+    @ForUser private val reference: CollectionReference
 ) : RemoteUserSource {
 
     /**

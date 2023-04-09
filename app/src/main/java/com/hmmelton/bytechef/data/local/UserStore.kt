@@ -1,20 +1,22 @@
 package com.hmmelton.bytechef.data.local
 
-import User
+import android.content.Context
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.IOException
+import androidx.datastore.dataStore
+import com.hmmelton.bytechef.data.model.local.User
 import com.hmmelton.bytechef.data.model.remote.RemoteUser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
 private const val TAG = "UserStore"
 
 /**
  * Class used for persisting user info locally.
  */
-class UserStore(private val dataStore: DataStore<User>) {
+class UserStore @Inject constructor(private val dataStore: DataStore<User>) {
     /**
      * Read user data. If an error occurs, emit the default (empty) data for [User]
      */
@@ -108,3 +110,8 @@ fun User.Builder.setList(
     }
     return this
 }
+
+val Context.userDataStore: DataStore<User> by dataStore(
+    fileName = "user.pb",
+    serializer = UserSerializer
+)

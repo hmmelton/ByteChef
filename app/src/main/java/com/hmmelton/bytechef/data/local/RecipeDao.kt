@@ -49,7 +49,7 @@ interface RecipeDao {
 
     @Transaction
     @Query("SELECT * FROM recipes WHERE last_updated_timestamp > :lastSyncTimestamp")
-    suspend fun getRecipeUpdatesSinceLastSync(lastSyncTimestamp: Long)
+    suspend fun getRecipeUpdatesSinceLastSync(lastSyncTimestamp: Long): List<LocalRecipe>
 
     @Transaction
     @Query("""
@@ -60,10 +60,10 @@ interface RecipeDao {
             WHERE name = :dietaryRestriction
         ))
     """)
-    suspend fun getFilteredFullRecipes(
+    fun getFilteredFullRecipes(
         cuisine: String? = null,
         dietaryRestriction: String? = null,
-    ): Flow<LocalRecipe>
+    ): Flow<List<LocalRecipe>>
 
     @Transaction
     @Query("DELETE FROM recipes WHERE id = :recipeId")

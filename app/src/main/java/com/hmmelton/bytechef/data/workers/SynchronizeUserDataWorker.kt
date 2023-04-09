@@ -5,7 +5,9 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.hmmelton.bytechef.data.repositories.SynchronizedRepository
 import com.hmmelton.bytechef.data.repositories.UserRepository
+import com.hmmelton.bytechef.di.ForUser
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.coroutineScope
@@ -27,7 +29,7 @@ class SynchronizeUserDataWorker @AssistedInject constructor(
             val uid = inputData.getString(WorkKeys.UID) ?: throw MissingKeyException(WorkKeys.UID)
             // Attempt to force refresh/sync user data
             // TODO: make more robust sync that doesn't always give priority to remote data source
-            userRepository.forceRefreshUser(uid)
+            (userRepository as? SynchronizedRepository)?.syncData(uid)
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to complete work", e)

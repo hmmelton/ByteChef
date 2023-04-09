@@ -1,17 +1,16 @@
 package com.hmmelton.bytechef.data.repositories
 
-import User
 import android.util.Log
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequest
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.await
 import com.hmmelton.bytechef.data.auth.AuthManager
 import com.hmmelton.bytechef.data.local.UserStore
+import com.hmmelton.bytechef.data.model.local.User
 import com.hmmelton.bytechef.data.remote.RemoteUserSource
 import com.hmmelton.bytechef.data.workers.SynchronizeUserDataWorker
 import com.hmmelton.bytechef.data.workers.WorkKeys
@@ -20,13 +19,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 private const val TAG = "UserRepositoryImpl"
 
 /**
  * Implementation of [UserRepository].
  */
-class UserRepositoryImpl(
+class UserRepositoryImpl @Inject constructor(
     private val remoteUserSource: RemoteUserSource,
     private val userStore: UserStore,
     private val workManager: WorkManager
@@ -207,4 +207,3 @@ class UserRepositoryImpl(
         syncJobId?.let { workManager.cancelWorkById(it) }
     }
 }
-
