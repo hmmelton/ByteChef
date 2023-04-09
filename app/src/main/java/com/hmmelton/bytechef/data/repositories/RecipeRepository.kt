@@ -39,13 +39,4 @@ interface RecipeRepository {
      * @return whether or not the deletion was successful
      */
     suspend fun deleteRecipe(recipeId: String): Boolean
-
-    /**
-     * Force a refresh of data from the remote data source.
-     *
-     * @param uid ID of current user
-     *
-     * @return whether or not the data refresh succeeded
-     */
-    suspend fun forceRefreshRecipes(uid: String): Boolean
 }

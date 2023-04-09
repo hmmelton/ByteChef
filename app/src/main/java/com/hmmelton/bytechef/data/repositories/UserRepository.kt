@@ -59,13 +59,4 @@ interface UserRepository {
      * Flow for reading user data.
      */
     fun observeUser(): Flow<User?>
-
-    /**
-     * Force a refresh from the remote data source.
-     *
-     * @param uid ID of current user
-     *
-     * @return whether or not the refresh was successful
-     */
-    suspend fun forceRefreshUser(uid: String): Boolean
 }

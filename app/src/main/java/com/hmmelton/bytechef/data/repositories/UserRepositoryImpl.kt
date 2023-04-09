@@ -121,7 +121,7 @@ class UserRepositoryImpl(
      *
      * @return whether or not the refresh/sync succeeded
      */
-    override suspend fun forceRefreshUser(uid: String): Boolean {
+    override suspend fun syncData(uid: String): Boolean {
         // TODO: sync data
         return true
     }
